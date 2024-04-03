@@ -223,6 +223,7 @@ class EnemyBullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = cx
         self.rect.y = cy
+        self.damage = 5
         self.counter = 0
 
     def update(self):
@@ -382,6 +383,7 @@ class CresentShot(pygame.sprite.Sprite):
         self.rect.y = cy
         self.speed = 1
         self.counter = 0
+        self.damage = 10
         self.target = target
         self.curve_points = self.calculate_bezier_curve(cx, cy, target.rect.x, target.rect.y)
         self.curve_index = 0
@@ -406,15 +408,11 @@ class CresentShot(pygame.sprite.Sprite):
 
     def calculate_bezier_curve(self, cx, cy, tx, ty):
         # Bezier curve calculation
-        # For simplicity, let's assume we have 4 control points: start, two middle, and end
-        # Here, start is the current position (cx, cy), and end is the target position (tx, ty)
-        # Two middle control points are calculated based on the difference between start and end
-        # You can adjust the control points to change the curve shape
         control1 = (cx + (tx - cx) / 3, cy - (ty - cy) / 3)
         control2 = (cx + 2 * (tx - cx) / 3, cy - 2 * (ty - cy) / 3)
 
         points = []
-        steps = 100  # Adjust this for smoother or coarser curves
+        steps = 100  # Adjust this for smoother or coarser curves. Warning: more steps may lag game while calculating
         for t in range(steps):
             x = ((1 - t / steps) ** 3) * cx + 3 * ((1 - t / steps) ** 2) * (t / steps) * control1[0] + 3 * (
                         (1 - t / steps)) * ((t / steps) ** 2) * control2[0] + ((t / steps) ** 3) * tx
@@ -800,6 +798,7 @@ class SnakeBullet(pygame.sprite.Sprite):
         self.image = pygame.image.load(f"img/02.png")
         self.rect = self.image.get_rect()
         self.rect.x = x
+        self.damage = 15
         self.rect.y = y
         self.speed_x = 2  # Horizontal speed
         self.speed_y = 3  # Vertical speed
@@ -843,27 +842,46 @@ class Acguy(pygame.sprite.Sprite):
 
     def shoot(self):
         start_x, start_y = self.rect.center
-        spacing = 5
+        spacing = 3
         velocities = [-2, -1, 0, 1, 2]
 
+
         for velocity in velocities:
-            bullet = Bullet(start_x, start_y, velocity, spacing)
+            bullet = spread(start_x, start_y, velocity, spacing)
             self.bullets_group.add(bullet)
-            bullet = Bullet(start_x, start_y+25, velocity, spacing)
+            bullet = spread(start_x, start_y+25, velocity, spacing)
             self.bullets_group.add(bullet)
-            bullet = Bullet(start_x, start_y+45, velocity, spacing)
+            bullet = spread(start_x, start_y+45, velocity, spacing)
             self.bullets_group.add(bullet)
 
-class Bullet(pygame.sprite.Sprite):
+class spread(pygame.sprite.Sprite):
     def __init__(self, x, y, velocity_x, spacing):
         super().__init__()
-        self.image = pygame.Surface((10, 10))  # Placeholder image
-        self.image.fill((255, 255, 0))  # Yellow color for visibility
+        self.counter = 0
+        self.images = []
+        self.sizes = []
+        for tx in range(1, 5):
+            img = pygame.image.load(f"img/spread ({tx}).png")
+            img.set_colorkey(BLACK)
+            self.sizes.append(img.get_size())
+            self.images.append(img)
+        self.index = 0
+        self.image = self.images[self.index]
+        self.rect = self.image.get_rect()
+        self.damage = 2
         self.rect = self.image.get_rect(center=(x, y))
         self.velocity_x = velocity_x  # Adjust spacing along the x-axis
         self.velocity_y = spacing  # Constant velocity along the y-axis
 
     def update(self):
+        speed = 20
+        self.counter += 1
+        if self.index == len(self.images) - 1:
+            self.index = -1
+        if self.counter >= speed and self.index < len(self.images) - 1:
+            self.counter = 0
+            self.index += 1
+            self.image = self.images[self.index]
         # Move the bullet
         self.rect.x += self.velocity_x
         self.rect.y += self.velocity_y
@@ -902,7 +920,41 @@ class sqaudren():
                 self.group.add(temp3)
                 self.group.add(temp4)
 
-
+class Orb(pygame.sprite.Sprite):
+    def __init__(self, cx, cy, type):
+        super().__init__()
+        self.counter = 0
+        self.type = type  # Type of orb: 'healing' or 'energy'
+        self.images = []
+        self.sizes = []
+        if type == "heal":
+            for x in range(1, 6):
+                img = pygame.image.load(f"img/healorb ({x}).png")
+                img.set_colorkey(BLACK)
+                self.sizes.append(img.get_size())
+                self.images.append(img)
+        if type == "energy":
+            for x in range(1, 6):
+                img = pygame.image.load(f"img/energyorb ({x}).png")
+                img.set_colorkey(BLACK)
+                self.sizes.append(img.get_size())
+                self.images.append(img)
+        self.index = 0
+        self.image = self.images[self.index]
+        self.rect = self.image.get_rect(center=(cx, cy))
+        self.velocity_y = 2 
+        self.health_value = 20  
+        self.energy_value = 1  
+    def update(self):
+        speed = 20
+        self.rect.y += self.velocity_y
+        self.counter += 1
+        if self.index == len(self.images) - 1:
+            self.index = -1
+        if self.counter >= speed and self.index < len(self.images) - 1:
+            self.counter = 0
+            self.index += 1
+            self.image = self.images[self.index]
 
 class Charge(pygame.sprite.Sprite):
     def __init__(self, cx, cy):
@@ -963,7 +1015,34 @@ class Thrust(pygame.sprite.Sprite):
             self.counter = 0
             self.index += 1
             self.image = self.images[self.index]
+class dashlight (pygame.sprite.Sprite):
+    def __init__(self, cx, cy):
+        pygame.sprite.Sprite.__init__(self)
+        self.images = []
+        self.sizes = []
+        for x in range(1, 5):
+            img = pygame.image.load(f"img/icon ({x}).png")
+            img.set_colorkey(BLACK)
+            self.sizes.append(img.get_size())
+            self.images.append(img)
+        self.index = 0
+        self.image = self.images[self.index]
+        self.rect = self.image.get_rect()
+        self.rect.x = cx
+        self.rect.y = cy
+        self.status = "off"
+        self.counter = 0
 
+    def update(self):
+        if self.status != "off":
+            speed = 20
+            self.counter += 1
+            if self.index == len(self.images) - 1:
+                self.index = -1
+            if self.counter >= speed and self.index < len(self.images) - 1:
+                self.counter = 0
+                self.index += 1
+                self.image = self.images[self.index]
 class Background ():
     def __init__(self,img):
         self.color = BLACK
@@ -1061,8 +1140,8 @@ healthB = healthBar(25, 750)
 SE = pygame.sprite.Group()
 SE.add(swordE)
 SE.add(healthB)
-thruster = Thrust(Player1.rect.x+15, Player1.rect.y+25)
-thr = pygame.sprite.Group()
+dl = dashlight(700,700)
+enviromental_sprites.add(dl)
 
 def charSel():
     running = True
@@ -1328,7 +1407,6 @@ def death_screen():
     selected = 1
     space_pressed = False
     while running:
-
         screen.blit(dth_img, (-100, 0))
         draw_text(menu_font, 'press esc to go back to menu', 400, 750)
         for event in pygame.event.get():
@@ -1355,14 +1433,18 @@ def game(P1=Player1):
     bossSpawn = False
     DASH_COOLDOWN = 5000
     last_dash_time = pygame.time.get_ticks()
+    Player1.health = 300
+    healthB.health = Player1.health
     while not done:
         keys = pygame.key.get_pressed()
         current_time = pygame.time.get_ticks()
         if current_time - last_dash_time >= DASH_COOLDOWN:
             dash_active = True
+            dl.status="on"
             draw_text(menu_font, "DASH ACTIVE", 700, 400)
         else:
             dash_active = False
+            dl.status = "off"
         text_surface = my_font.render(str(score), False, WHITE)
         scoreRect=text_surface.get_rect()
         scoreRect.center=(600,15)
@@ -1408,17 +1490,16 @@ def game(P1=Player1):
                 g = Gouf(random.randint(50, 600), -50, enemyBullets)
                 enemies.add(g)
         if keys[pygame.K_3]:
-            if len(boss) <1:
-                Char = CharNovaZakuII(50, 50, Player1)
-                boss.add(Char)
-                bossSpawn = True
+            if len(enemies) <1:
+                g = Acguy(random.randint(50, 600), -50, enemyBullets)
+                enemies.add(g)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 done = True
             elif event.type == pygame.KEYDOWN:
                 if event.key == 32:
                     if len(PlayerBullets) < 5:  # spacebar
-                        shoot_sfx.play()
+                        #shoot_sfx.play()
                         Player1.shoot(PlayerBullets)
                     if swordslash.__len__()>1 and Player1.type=="VG" and len(PlayerBullets)< 10:
                         temp1.shoot(PlayerBullets)
@@ -1446,10 +1527,15 @@ def game(P1=Player1):
                         if (e.health <= 0):
                             #death_sfx.play()
                             tempx = e.rect.x
+                            tempy=e.rect.y
                             ex = explosion(tempx, e.rect.y)
-                            e.kill()
+                            if random.randint(0,10) > 9:
+                                orb_type = random.choice(['heal', 'energy'])
+                                temporb = Orb( tempx, tempy, orb_type)
+                                enviromental_sprites.add(temporb)
                             explosions.add(ex)
                             score += e.score
+                            e.kill()
                         break
         for s in swordslash:
             for b in enemyBullets:
@@ -1463,6 +1549,17 @@ def game(P1=Player1):
                     e.kill()
                     explosions.add(ex)
                     score += 10
+
+        for o in enviromental_sprites:
+            if isinstance(o, Orb):
+                if pygame.sprite.collide_rect(o, Player1):
+                    if o.type == "heal":
+                        Player1.health += o.health_value
+                        healthB.health += o.health_value
+                        o.kill()
+                    if o.type == "energy ":
+                        swordE.energy+=1
+                        o.kill()
         screen.fill(BLACK)
         screen.blit(bkg_img, background.sprite)
         background.draw(screen)
@@ -1491,6 +1588,7 @@ def game(P1=Player1):
                 temp2.rect.x = Player1.rect.x + 50
             if pygame.time.get_ticks() - temp1.starttimer > 4999:
                 temp1.kill()
+                temp2.kill()
             if pygame.time.get_ticks() - temp2.starttimer > 4999:
                 temp2.kill()
         starsG.draw(screen)
@@ -1511,7 +1609,7 @@ def game(P1=Player1):
         for b in enemyBullets:
             b.update()
             if pygame.sprite.collide_rect(b,Player1):
-                Player1.health-=5
+                Player1.health-=b.damage
                 b.kill()
         for e in enemies:
             if (random.randint(1,100)<2):
@@ -1519,7 +1617,7 @@ def game(P1=Player1):
                 if isinstance(e, gelgoog):
                     b = CresentShot(spawnx, e.rect.y, Player1)
                     enemyBullets.add(b)
-                if isinstance(e, Gouf):
+                if isinstance(e, Gouf) or isinstance(e, Acguy):
                     pass
                 else:
                     b = EnemyBullet(spawnx, e.rect.y+25)
@@ -1537,14 +1635,12 @@ def game(P1=Player1):
         tempRect.center = 200, 200
         Player1.draw(screen)
         Player1.update()
-        thr.update()
         boss.update()
         boss.draw(screen)
         if Char.health <= 0:
             Char.abilgroup.empty()
             Char.kill()
         Char.abilgroup.draw(screen)
-        thr.draw(screen)
         screen.blit(HUD_img, HUD.sprite)
         HUD.draw(screen)
         screen.blit(text_surface, scoreRect)
@@ -1555,7 +1651,7 @@ def game(P1=Player1):
             enemies.empty()
             bullets.empty()
             boss.empty()
-            menu(Player1)
+            death_screen()
         draw_text(hud_font, 'Ability', 55, 700)
         draw_text(hud_font, 'AP:'+health_percent.__str__()+"%", 75, 750)
         if boss.__len__()>0:
